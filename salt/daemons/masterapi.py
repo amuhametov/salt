@@ -557,8 +557,18 @@ class RemoteFuncs(object):
                 if re.match(match, load['id']):
                     if isinstance(self.opts['mine_get'][match], list):
                         perms.update(self.opts['mine_get'][match])
-            if not any(re.match(perm, load['fun']) for perm in perms):
-                return {}
+            if isinstance(load['fun'], list):
+                load['fun'] = list(set(load['fun']))
+                _fun = []
+                for fun in load['fun']:
+                    if any(re.match(perm, fun) for perm in perms):
+                        _fun.append(fun)
+                load['fun'] = _fun
+                if not len(load['fun']):
+                    return {}
+            else:
+                if not any(re.match(perm, load['fun']) for perm in perms):
+                    return {}
         ret = {}
         if not salt.utils.verify.valid_id(self.opts, load['id']):
             return ret
@@ -588,9 +598,16 @@ class RemoteFuncs(object):
         for minion in minions:
             fdata = self.cache.fetch('minions/{0}'.format(minion), 'mine')
             if isinstance(fdata, dict):
-                fdata = fdata.get(load['fun'])
-                if fdata:
-                    ret[minion] = fdata
+                if isinstance(load['fun'], list):
+                    ret[minion] = {}
+                    for fun in load['fun']:
+                        if fdata.get(fun):
+                            ret[minion][fun] = fdata.get(fun)
+                else:
+                    fdata = fdata.get(load['fun'])
+                    if fdata:
+                        ret[minion] = fdata
+
         return ret
 
     def _mine(self, load, skip_verify=False):
