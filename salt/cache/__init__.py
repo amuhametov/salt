@@ -6,12 +6,11 @@ Loader mechanism for caching data, with data expiration, etc.
 '''
 
 # Import Python libs
-from __future__ import absolute_import, print_function, unicode_literals
+from __future__ import absolute_import
 import logging
 import time
 
-# Import Salt libs
-import salt.config
+# Import Salt lobs
 from salt.ext import six
 from salt.payload import Serial
 from salt.utils.odict import OrderedDict
@@ -67,17 +66,12 @@ class Cache(object):
     Key name is a string identifier of a data container (like a file inside a
     directory) which will hold the data.
     '''
-    def __init__(self, opts, cachedir=None, **kwargs):
+    def __init__(self, opts, **kwargs):
         self.opts = opts
-        if cachedir is None:
-            self.cachedir = opts.get('cachedir', salt.syspaths.CACHE_DIR)
-        else:
-            self.cachedir = cachedir
-        self.driver = opts.get('cache', salt.config.DEFAULT_MASTER_OPTS['cache'])
+        self.driver = opts['cache']
         self.serial = Serial(opts)
         self._modules = None
         self._kwargs = kwargs
-        self._kwargs['cachedir'] = self.cachedir
 
     def __lazy_init(self):
         self._modules = salt.loader.cache(self.opts, self.serial)
@@ -224,7 +218,7 @@ class Cache(object):
         fun = '{0}.flush'.format(self.driver)
         return self.modules[fun](bank, key=key, **self._kwargs)
 
-    def list(self, bank):
+    def ls(self, bank):
         '''
         Lists entries stored in the specified bank.
 
@@ -240,8 +234,10 @@ class Cache(object):
             Raises an exception if cache driver detected an error accessing data
             in the cache backend (auth, permissions, etc).
         '''
-        fun = '{0}.list'.format(self.driver)
+        fun = '{0}.ls'.format(self.driver)
         return self.modules[fun](bank, **self._kwargs)
+
+    list = ls
 
     def contains(self, bank, key=None):
         '''
@@ -323,10 +319,10 @@ class MemCache(Cache):
         if record is not None and record[0] + self.expire >= now:
             if self.debug:
                 self.hit += 1
-                log.debug(
-                    'MemCache stats (call/hit/rate): %s/%s/%s',
-                    self.call, self.hit, float(self.hit) / self.call
-                )
+                log.debug('MemCache stats (call/hit/rate): '
+                          '{0}/{1}/{2}'.format(self.call,
+                                               self.hit,
+                                               float(self.hit) / self.call))
             # update atime and return
             record[0] = now
             self.storage[(bank, key)] = record
